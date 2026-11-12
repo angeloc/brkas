@@ -1,4 +1,4 @@
-<img src="docs/brkas-logo.png" alt="BRKAS: making Buildroot projects easy" width="100%">
+<img src="https://raw.githubusercontent.com/angeloc/brkas/main/docs/brkas-logo.png" alt="BRKAS: making Buildroot projects easy" width="100%">
 
 brkas does for [Buildroot](https://buildroot.org) what kas does for Yocto.
 
@@ -54,17 +54,30 @@ If you know kas, this table shows what each part of kas becomes in brkas:
 
 ## Installation
 
+Install brkas from [PyPI](https://pypi.org/project/brkas/):
+
 ```
-pipx install .             # or: pipx install '.[schema]' to also check the project files
+pipx install brkas
 ```
 
 This installs two commands, `brkas` and `brkas-container`.
+
+To also check your project files against the schema of brkas, install it with the `schema`
+extra:
+
+```
+pipx install 'brkas[schema]'
+```
+
+To install from a checkout of this repository instead, run `pipx install .` in it.
 
 brkas needs Python 3.10 or newer and PyYAML. To build directly on your machine, you also
 need the tools Buildroot itself needs (make, gcc, git and so on). If you use
 `brkas-container` instead, you only need Python and Docker or Podman.
 
 ## Quick start
+
+The examples are in this repository. From a checkout of it:
 
 ```
 brkas build examples/x86_64.yml
