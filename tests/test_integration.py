@@ -125,7 +125,7 @@ def test_lock_and_dump(setup, capsys):
     assert (work / "test/patched.txt").exists()
 
 
-def test_for_all_repos(setup, capfd):
+def test_for_all_repos_clean(setup, capfd):
     tmp, proj = setup
     work = tmp / "work"
     project = str(proj / "board.yml")
@@ -134,6 +134,27 @@ def test_for_all_repos(setup, capfd):
     out = capfd.readouterr().out
     assert "repo=buildroot " + git(BUILDROOT, "rev-parse", "HEAD") in out
     assert "repo=test " in out
+    assert cli.main(["--work-dir", str(work), "clean", project]) == 0
+    assert not (work / "build/qemu").exists()
+    assert (work / "buildroot").exists()
+
+    # --cache: only the download cache of the project, the repos stay
+    write(tmp / "dlcache/busybox/busybox.tar", "x")
+    write(proj / "cache.yml", f"header: {{version: 1}}\nbuild: {{dl_dir: {tmp}/dlcache}}\n")
+    cached = f"{project}:{proj}/cache.yml"
+    assert cli.main(["--work-dir", str(work), "clean", "--cache"]) == 1
+    assert cli.main(["--work-dir", str(work), "clean", "--all", "--cache"]) == 1
+    (work / "build/qemu").mkdir(parents=True)
+    assert cli.main(["--work-dir", str(work), "clean", "--cache", cached]) == 0
+    assert not (tmp / "dlcache").exists()
+    assert (work / "buildroot").exists() and (work / "build/qemu").exists()
+
+    # without a project: --all is needed, and removes only what brkas made
+    assert cli.main(["--work-dir", str(work), "clean"]) == 1
+    write(work / "mine/keep.txt", "mine\n")
+    (work / "build/other").mkdir(parents=True)
+    assert cli.main(["--work-dir", str(work), "clean", "--all"]) == 0
+    assert sorted(os.listdir(work)) == ["mine"]
 
 
 def test_release_tarball(setup, tmp_path):

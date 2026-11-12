@@ -144,6 +144,9 @@ brkas build project.yml [targets]   # the same, then build
 brkas dump project.yml [--lock]     # print the merged project
 brkas lock project.yml              # write project.lock.yml
 brkas for-all-repos project.yml 'git log -1 --oneline'
+brkas clean project.yml [--all]     # remove the output (--all: the repositories too)
+brkas clean --all                   # remove everything brkas made in the work directory
+brkas clean --cache project.yml     # remove only the download cache (build.dl_dir)
 ```
 
 brkas puts the downloaded repositories in the work directory: `buildroot/`, plus one

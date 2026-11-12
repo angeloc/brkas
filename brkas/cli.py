@@ -2,6 +2,7 @@
 """brkas: set up and build Buildroot projects described in YAML files."""
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 
@@ -113,6 +114,75 @@ def cmd_for_all_repos(args):
     return status
 
 
+def remove(path):
+    if os.path.isdir(path):
+        log(f"removing {path}")
+        shutil.rmtree(path)
+
+
+def download_cache(project, work):
+    """Where Buildroot downloads for this project: build.dl_dir, else
+    $BR2_DL_DIR, else dl/ in the Buildroot tree."""
+    dl_dir = (project.data.get("build") or {}).get("dl_dir") or os.environ.get("BR2_DL_DIR")
+    if dl_dir:
+        return os.path.abspath(config.expand(dl_dir))
+    return os.path.join(make_repos(project, work)["buildroot"].tree, "dl")
+
+
+def remove_cache(path):
+    """Empties the cache; the directory itself may stay, as when it is a
+    mount point in brkas-container."""
+    if not os.path.isdir(path):
+        return
+    log(f"removing {path}")
+    for entry in os.listdir(path):
+        entry = os.path.join(path, entry)
+        if os.path.isdir(entry) and not os.path.islink(entry):
+            shutil.rmtree(entry)
+        else:
+            os.unlink(entry)
+    try:
+        os.rmdir(path)
+    except OSError:
+        pass
+
+
+def clean_work_dir(work):
+    """clean --all without a project: what brkas made in the work
+    directory, i.e. build/, downloads/ and the repos it checked out (those
+    with its state file)."""
+    for name in ("build", "downloads"):
+        remove(os.path.join(work, name))
+    for entry in sorted(os.listdir(work)) if os.path.isdir(work) else []:
+        path = os.path.join(work, entry)
+        if os.path.exists(os.path.join(path, ".git", "brkas.json")) or \
+                os.path.exists(os.path.join(path, ".brkas.json")):
+            remove(path)
+
+
+def cmd_clean(args):
+    work = os.path.abspath(args.work_dir)
+    if not args.project:
+        if args.cache:
+            raise ConfigError("clean --cache needs a project: the cache is its build.dl_dir")
+        if not args.all or args.output:
+            raise ConfigError("clean needs a project, or --all to clean the whole work directory")
+        return clean_work_dir(work)
+    project = config.load(args.project)
+    if args.cache:
+        remove_cache(download_cache(project, work))
+        if not args.all:
+            return  # only the cache: the output stays
+    build = project.data.get("build") or {}
+    root = build.get("dir") or "build"
+    out_dir = args.output or os.path.join(root if os.path.isabs(root) else os.path.join(work, root), project.name)
+    remove(out_dir)
+    if args.all:
+        for name, repo in make_repos(project, work).items():
+            if repo.kind != "local":
+                remove(repo.root)
+
+
 # --- arguments ---------------------------------------------------------
 
 def parser():
@@ -122,13 +192,15 @@ def parser():
                    help="where repos and build/ go (default: $BRKAS_WORK_DIR or .)")
     sub = p.add_subparsers(dest="command", required=True, metavar="command")
 
-    def add(name, func, help):
+    def add(name, func, help, checkout=True, project="project file(s), a.yml or a.yml:b.yml"):
         s = sub.add_parser(name, help=help, description=help)
-        s.add_argument("project", help="project file(s), a.yml or a.yml:b.yml")
+        if project:
+            s.add_argument("project", help=project)
         s.set_defaults(func=func)
-        s.add_argument("--update", action="store_true", help="fetch the repos, to follow their branches")
-        s.add_argument("--force", action="store_true", help="discard local changes in the repos")
-        s.add_argument("-o", "--output", help="output directory (default: build/<name>)")
+        if checkout:
+            s.add_argument("--update", action="store_true", help="fetch the repos, to follow their branches")
+            s.add_argument("--force", action="store_true", help="discard local changes in the repos")
+            s.add_argument("-o", "--output", help="output directory (default: build/<name>)")
         return s
 
     s = add("checkout", cmd_checkout, "check out the repos and configure the output directory")
@@ -144,6 +216,14 @@ def parser():
     s = add("for-all-repos", cmd_for_all_repos, "run a shell command in every repo")
     s.add_argument("--no-checkout", action="store_true", help="use the repos as they are")
     s.add_argument("command", help="command, with BRKAS_REPO_{NAME,DIR,URL,COMMIT} set")
+    s = add("clean", cmd_clean, "remove the output directory", checkout=False, project=None)
+    s.add_argument("project", nargs="?", help="project file(s); without it, --all cleans the whole "
+                                              "work directory")
+    s.add_argument("-o", "--output", help="output directory (default: build/<name>)")
+    s.add_argument("--all", action="store_true", help="also remove the repos brkas checked out")
+    s.add_argument("--cache", action="store_true",
+                   help="remove the download cache of the project (build.dl_dir) and nothing else; "
+                        "with --all, the cache as well")
     return p
 
 
