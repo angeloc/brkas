@@ -4,19 +4,25 @@
 A repo is one of:
   - git: url + refspec (branch, tag or commit) or commit (from a lock
     file), cloned in <work dir>/<name> and checked out detached;
+  - release: a Buildroot release tarball (release: 2026.08.1, or
+    tarball: URL or file), checked against sha256 and unpacked;
   - local: dir: an existing directory, used as it is.
 
 Patches are applied after the checkout, in id order, then file name
-order for a directory: git am for mails, git apply for plain diffs.
-A state file records the base and the
+order for a directory: git am for mails, git apply for plain diffs
+(patch -p1 for tarballs). A state file records the base and the
 patches applied, so that a checkout is redone only when they change,
 and a tree with local changes is never touched without --force.
 """
 import hashlib
 import json
 import os
+import shutil
 import subprocess
+import tarfile
+import urllib.request
 
+from . import __version__
 from .config import ConfigError
 
 GIT_ID = ["-c", "user.name=brkas", "-c", "user.email=brkas@localhost"]
@@ -57,8 +63,11 @@ class Repo:
         elif spec.get("url"):
             self.kind = "git"
             self.root = os.path.join(work_dir, name)
+        elif spec.get("release") or spec.get("tarball"):
+            self.kind = "release"
+            self.root = os.path.join(work_dir, name)
         else:
-            raise ConfigError(f"{name}: needs url: or dir:")
+            raise ConfigError(f"{name}: needs url:, release:/tarball: or dir:")
         if self.kind == "local" and spec.get("patches"):
             raise ConfigError(f"{name}: patches need a repo brkas manages, not dir:")
 
@@ -114,7 +123,9 @@ class Repo:
         raise RepoError(f"{self.name}: {commit or refspec or 'HEAD'} not found in {self.spec['url']}")
 
     def _state_file(self):
-        return os.path.join(self.root, ".git", "brkas.json")
+        if self.kind == "git":
+            return os.path.join(self.root, ".git", "brkas.json")
+        return os.path.join(self.root, ".brkas.json")
 
     def state(self):
         try:
@@ -163,15 +174,71 @@ class Repo:
             raise RepoError(f"{self.name}: {os.path.basename(patch)} does not apply")
         self.git("commit", "-q", "-m", f"brkas: {os.path.basename(patch)}")
 
+    # --- release tarball -----------------------------------------------
+
+    def tarball_source(self):
+        return self.spec.get("tarball") or \
+            f"https://buildroot.org/downloads/buildroot-{self.spec['release']}.tar.gz"
+
+    def _fetch_tarball(self):
+        src = self.tarball_source()
+        if "://" not in src:
+            return src
+        dl = os.path.join(self.work_dir, "downloads")
+        os.makedirs(dl, exist_ok=True)
+        dest = os.path.join(dl, os.path.basename(src))
+        if not os.path.exists(dest):
+            log(f"{self.name}: downloading {src}")
+            req = urllib.request.Request(src, headers={"User-Agent": f"brkas/{__version__}"})
+            with urllib.request.urlopen(req, timeout=60) as r, open(dest + ".part", "wb") as f:
+                shutil.copyfileobj(r, f)
+            os.replace(dest + ".part", dest)
+        return dest
+
+    def _checkout_release(self, locate, force):
+        tarball = self._fetch_tarball()
+        digest = sha256(tarball)
+        if self.spec.get("sha256") and digest != self.spec["sha256"]:
+            raise RepoError(f"{self.name}: {tarball}: sha256 {digest}, expected {self.spec['sha256']}")
+        if not self.spec.get("sha256"):
+            log(f"{self.name}: no sha256 given, {os.path.basename(tarball)} is {digest}")
+        patches = self.patch_files(locate)
+        wanted = {"sha256": digest, "patches": [sha256(p) for p in patches]}
+        state = self.state()
+        if {k: state.get(k) for k in wanted} == wanted:
+            return
+        if os.path.exists(self.root):
+            if not state and not force:
+                raise RepoError(f"{self.name}: {self.root} exists and was not unpacked by brkas, use --force")
+            shutil.rmtree(self.root)
+        log(f"{self.name}: unpacking {os.path.basename(tarball)}")
+        os.makedirs(self.root)
+        with tarfile.open(tarball) as tar:
+            members = []
+            for m in tar.getmembers():
+                parts = m.name.split("/", 1)
+                if len(parts) < 2 or not parts[1]:
+                    continue
+                m.name = parts[1]
+                members.append(m)
+            tar.extractall(self.root, members=members, filter="tar")
+        for patch in patches:
+            run(["patch", "-p1", "-s", "-N", "-i", patch], cwd=self.root)
+        self._save_state(wanted)
+
     # --- common --------------------------------------------------------
 
     def checkout(self, locate, update=False, force=False):
         if self.kind == "git":
             self._checkout_git(locate, update, force)
+        elif self.kind == "release":
+            self._checkout_release(locate, force)
         elif not os.path.isdir(self.root):
             raise RepoError(f"{self.name}: {self.root} not found")
 
     def describe(self):
         if self.kind == "git":
             return f"{self.spec['url']} {self.state().get('base', '?')[:12]}"
+        if self.kind == "release":
+            return self.tarball_source()
         return self.root

@@ -43,6 +43,9 @@
       "properties": {
         "url": {"type": ["string", "null"], "description": "git URL"},
         "refspec": {"type": ["string", "null"], "description": "branch, tag or commit"},
+        "release": {"type": ["string", "null"], "description": "Buildroot release tarball version, e.g. 2026.08.1"},
+        "tarball": {"type": ["string", "null"], "description": "tarball URL or file, default the buildroot.org release"},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
         "dir": {"type": ["string", "null"], "description": "an existing local directory, not managed by brkas"},
         "path": {"type": ["string", "null"], "description": "for an external: its directory inside the repo"},
         "patches": {

@@ -101,6 +101,8 @@ def _bind_paths(data, base_dir):
             continue
         if repo.get("dir"):
             repo["dir"] = _abs(base_dir, repo["dir"])
+        if repo.get("release") is not None and repo.get("tarball") and "://" not in repo["tarball"]:
+            repo["tarball"] = _abs(base_dir, repo["tarball"])
         for ident, patch in (repo.get("patches") or {}).items():
             if patch is not None:
                 repo["patches"][ident] = bind(patch)

@@ -89,3 +89,32 @@ def test_checkout_configures(setup, capsys):
     # nothing changed: no new configuration
     assert cli.main(["--work-dir", str(work), "checkout", project]) == 0
     assert "configuring" not in capsys.readouterr().out
+
+
+def test_release_tarball(setup, tmp_path):
+    import hashlib
+    tarball = tmp_path / "buildroot-test.tar.gz"
+    subprocess.run(f"git archive --prefix=buildroot-test/ HEAD | gzip -1 > {tarball}", shell=True,
+                   cwd=BUILDROOT, check=True)
+    digest = hashlib.sha256(tarball.read_bytes()).hexdigest()
+    project = tmp_path / "rel.yml"
+    write(project, f"""\
+        header: {{version: 1}}
+        buildroot:
+          release: "test"
+          tarball: {tarball}
+          sha256: {digest}
+        defconfig: qemu_x86_64
+        """)
+    work = tmp_path / "work"
+    assert cli.main(["--work-dir", str(work), "checkout", str(project)]) == 0
+    assert (work / "buildroot/Makefile").exists()
+    assert "BR2_x86_64=y" in (work / "build/rel/.config").read_text()
+    write(project, f"""\
+        header: {{version: 1}}
+        buildroot:
+          release: "test"
+          tarball: {tarball}
+          sha256: {"0" * 64}
+        """)
+    assert cli.main(["--work-dir", str(work), "checkout", str(project)]) == 1

@@ -19,8 +19,8 @@ header:
   version: 1
 
 buildroot:
-  url: https://gitlab.com/buildroot.org/buildroot.git
-  refspec: 2026.08.1
+  release: "2026.08.1"
+  sha256: 38a6c152490096018720a9ade379ee1e571c9bf5f93a3657a166566945a98b0d
 
 externals:
   yabi:
@@ -78,6 +78,9 @@ header:
 buildroot:                   # where Buildroot comes from, pick one way:
   url: https://gitlab.com/buildroot.org/buildroot.git
   refspec: 2026.08.1         #   a git repository, at a branch, tag or commit;
+  # release: "2026.08.1"     #   an official release tarball;
+  # tarball: <url or file>   #   any other tarball;
+  # sha256: <hash>           #   (the expected SHA-256 of the tarball)
   # dir: ../buildroot        #   a directory you already have, used as it is
   patches:                   # patches applied after the download
     fix: patches/buildroot   #   a patch file, or a directory of *.patch files
@@ -125,7 +128,7 @@ Some rules to know:
 - Setting a key to `null` removes it. For example, `fragments: {debug: null}` removes a
   fragment that an included file added.
 - A path is relative to the file where it is written.
-- Quote values that look like numbers, such as `refspec: "2026.08"`. Otherwise YAML reads
+- Quote values that look like numbers, such as `release: "2026.08"`. Otherwise YAML reads
   them as numbers and brkas rejects them.
 
 After configuring, brkas checks the result. If an option you asked for is not in the final
