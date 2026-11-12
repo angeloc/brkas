@@ -47,7 +47,7 @@ If you know kas, this table shows what each part of kas becomes in brkas:
 | `repos:`                         | `buildroot:` and `externals:`                       |
 | `machine:`, `distro:`            | `defconfig:`                                        |
 | `local_conf_header:`             | `fragments:` (files) and `config:` (single options) |
-| `kas build`, `checkout`          | `brkas build`, `checkout`                           |
+| `kas build`, `checkout`, `shell` | `brkas build`, `checkout`, `shell`                  |
 | `kas dump --lock`, lock files    | `brkas dump --lock`, `brkas lock`, `*.lock.yml`     |
 | `kas menu`                       | `brkas menuconfig`, `xconfig`                       |
 
@@ -142,6 +142,7 @@ option that is not enabled.
 ```
 brkas checkout project.yml          # download everything and configure
 brkas build project.yml [targets]   # the same, then build
+brkas shell project.yml [-c cmd]    # open a shell to build other software for the target
 brkas menuconfig project.yml --save fragments/mine.config   # or xconfig
 brkas dump project.yml [--lock]     # print the merged project
 brkas lock project.yml              # write project.lock.yml
@@ -160,6 +161,24 @@ Two options control the repositories:
 - `--update` fetches new commits, so that a branch moves forward.
 - `--force` throws away your local changes in the repositories. Without it, brkas stops
   instead of touching them.
+
+### brkas shell
+
+`brkas shell` opens a bash shell in the output directory, ready to cross-compile other
+software for your target. It loads Buildroot's SDK environment (`host/environment-setup`):
+
+- the cross compiler is in `PATH`;
+- `CC`, `CFLAGS`, `ARCH`, `CROSS_COMPILE` and `KERNELDIR` are set;
+- the `configure` and `cmake` aliases use the right options.
+
+`make` still works in this shell.
+
+The first time, brkas enables the Buildroot option that creates this environment
+(`BR2_PACKAGE_HOST_ENVIRONMENT_SETUP`). If the SDK is not built yet, brkas runs
+`make sdk` before opening the shell. It does the same when the project configuration
+changed since the last SDK, so that the SDK always matches the project. While it builds, brkas shows a spinner and writes
+the build output to `brkas-sdk.log` in the output directory. The option stays enabled
+after that. You can still turn it off in `config:`.
 
 ### brkas menuconfig and xconfig
 

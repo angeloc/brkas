@@ -52,8 +52,8 @@ def prepare(args, checkout=True):
     raise ConfigError("includes keep pointing to new repos: " + ", ".join(sorted(project.missing)))
 
 
-def builder(args, project, repos):
-    return Builder(project, repos, os.path.abspath(args.work_dir), args.output)
+def builder(args, project, repos, shell=False):
+    return Builder(project, repos, os.path.abspath(args.work_dir), args.output, shell)
 
 
 def lock_data(repos):
@@ -85,6 +85,11 @@ def cmd_build(args):
     b = builder(args, project, repos)
     b.configure(force=args.reconfigure)
     b.build(args.targets)
+
+
+def cmd_shell(args):
+    project, repos = prepare(args)
+    return builder(args, project, repos, shell=True).shell(args.command)
 
 
 def cmd_menuconfig(args):
@@ -220,6 +225,8 @@ def parser():
     s = add("build", cmd_build, "check out, configure and build")
     s.add_argument("--reconfigure", action="store_true", help="configure again from scratch")
     s.add_argument("targets", nargs="*", help="make targets (default: build.targets, else all)")
+    s = add("shell", cmd_shell, "bash in the output directory with the SDK environment, after make sdk if needed")
+    s.add_argument("-c", "--command", help="run this command instead of an interactive shell")
     for tool, help in CONFIG_TOOLS.items():
         s = add(tool, cmd_menuconfig, help)
         s.set_defaults(tool=tool)

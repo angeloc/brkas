@@ -125,10 +125,40 @@ def test_lock_and_dump(setup, capsys):
     assert (work / "test/patched.txt").exists()
 
 
-def test_for_all_repos_clean(setup, capfd):
+def test_shell_for_all_repos_clean(setup, capfd, monkeypatch):
+    from brkas.buildroot import Builder
     tmp, proj = setup
     work = tmp / "work"
     project = str(proj / "board.yml")
+    host = work / "build/qemu/host"
+
+    # no SDK yet: the shell runs make sdk (here a fake one making
+    # host/environment-setup and sdk-location), then sources the setup
+    builds = []
+
+    def fake_make_quietly(self, target, what):
+        builds.append((target,))
+        write(host / "environment-setup", 'echo banner\nexport BRKAS_TEST_ENV=yes\n')
+        write(host / "share/buildroot/sdk-location", str(host) + "\n")
+    monkeypatch.setattr(Builder, "make_quietly", fake_make_quietly)
+    config = work / "build/qemu/.config"
+    assert "BR2_PACKAGE_HOST_ENVIRONMENT_SETUP=y" not in config.read_text()
+    assert cli.main(["--work-dir", str(work), "shell", project, "-c",
+                     'test -f .config && test "$BRKAS_OUTPUT" = "$PWD" && echo "env=$BRKAS_TEST_ENV"']) == 0
+    out = capfd.readouterr().out
+    assert builds == [("sdk",)]
+    assert "BR2_PACKAGE_HOST_ENVIRONMENT_SETUP=y" in config.read_text()
+    assert "env=yes" in out and "banner" not in out
+    # built: no new build
+    assert cli.main(["--work-dir", str(work), "shell", project, "-c", "true"]) == 0
+    assert builds == [("sdk",)]
+    # the package stays on for the other commands: no new configuration
+    capfd.readouterr()
+    assert cli.main(["--work-dir", str(work), "checkout", project]) == 0
+    assert "configuring" not in capfd.readouterr().out
+    assert "BR2_PACKAGE_HOST_ENVIRONMENT_SETUP=y" in config.read_text()
+    monkeypatch.undo()
+    capfd.readouterr()
     assert cli.main(["--work-dir", str(work), "for-all-repos", "--no-checkout", project,
                      'echo "repo=$BRKAS_REPO_NAME $(git rev-parse HEAD)"']) == 0
     out = capfd.readouterr().out

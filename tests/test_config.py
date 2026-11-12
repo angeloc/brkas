@@ -134,3 +134,14 @@ def test_save_fragment(tmp_path):
     save_fragment(str(frag), ["BR2_A=y", 'BR2_B="x"'])
     save_fragment(str(frag), ["# BR2_A is not set", "BR2_C=y"])
     assert frag.read_text() == 'BR2_B="x"\n# BR2_A is not set\nBR2_C=y\n'
+
+
+def test_sdk_jobs(monkeypatch):
+    from types import SimpleNamespace
+    from brkas.buildroot import Builder
+    b = Builder.__new__(Builder)
+    monkeypatch.delenv("MAKEFLAGS", raising=False)
+    b.project = SimpleNamespace(data={})
+    assert b.jobs() == [f"-j{len(os.sched_getaffinity(0))}"]
+    b.project = SimpleNamespace(data={"env": {"MAKEFLAGS": "-j4"}})
+    assert b.jobs() == []
