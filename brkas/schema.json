@@ -100,6 +100,15 @@
     "env": {
       "type": ["object", "null"],
       "additionalProperties": {"type": ["string", "number", "null"]}
+    },
+    "container": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "image": {"type": ["string", "null"]},
+        "engine": {"enum": ["docker", "podman", null]},
+        "options": {"type": ["array", "null"], "items": {"type": "string"}}
+      }
     }
   }
 }

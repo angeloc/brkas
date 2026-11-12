@@ -136,6 +136,18 @@ def test_save_fragment(tmp_path):
     assert frag.read_text() == 'BR2_B="x"\n# BR2_A is not set\nBR2_C=y\n'
 
 
+def test_container_mounts(tmp_path):
+    from brkas import container
+    src = tmp_path / "src/app"
+    src.mkdir(parents=True)
+    proj = write(tmp_path / "proj/p.yml", "header: {version: 1}\n")
+    work = str(tmp_path / "work")
+    mounts = container.mounts_for([str(proj)], work, [str(src / "sub/.."), str(src)])
+    assert mounts == sorted([str(tmp_path / "proj"), str(src), work])
+    with pytest.raises(SystemExit):
+        container.mounts_for([str(proj)], work, [str(tmp_path / "missing")])
+
+
 def test_sdk_jobs(monkeypatch):
     from types import SimpleNamespace
     from brkas.buildroot import Builder

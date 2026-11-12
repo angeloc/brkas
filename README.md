@@ -49,6 +49,7 @@ If you know kas, this table shows what each part of kas becomes in brkas:
 | `local_conf_header:`             | `fragments:` (files) and `config:` (single options) |
 | `kas build`, `checkout`, `shell` | `brkas build`, `checkout`, `shell`                  |
 | `kas dump --lock`, lock files    | `brkas dump --lock`, `brkas lock`, `*.lock.yml`     |
+| `kas-container`                  | `brkas-container`                                   |
 | `kas menu`                       | `brkas menuconfig`, `xconfig`                       |
 
 ## Installation
@@ -57,10 +58,11 @@ If you know kas, this table shows what each part of kas becomes in brkas:
 pipx install .             # or: pipx install '.[schema]' to also check the project files
 ```
 
-This installs the `brkas` command.
+This installs two commands, `brkas` and `brkas-container`.
 
-brkas needs Python 3.10 or newer and PyYAML. It also needs the tools Buildroot itself
-needs (make, gcc, git and so on).
+brkas needs Python 3.10 or newer and PyYAML. To build directly on your machine, you also
+need the tools Buildroot itself needs (make, gcc, git and so on). If you use
+`brkas-container` instead, you only need Python and Docker or Podman.
 
 ## The project file
 
@@ -121,6 +123,11 @@ build:
 env:                         # environment variables for make
   MAKEFLAGS: -j12            # with BR2_PER_PACKAGE_DIRECTORIES: y, builds
                              # several packages at the same time
+
+container:                   # default settings for brkas-container
+  image: brkas:0.1.0
+  engine: podman
+  options: [--network=host]
 ```
 
 Some rules to know:
@@ -183,7 +190,7 @@ after that. You can still turn it off in `config:`.
 ### brkas menuconfig and xconfig
 
 These commands open Buildroot's configuration tools: `brkas menuconfig`, or `brkas xconfig`
-for the graphical one. xconfig needs Qt 5.
+for the graphical one. xconfig needs Qt 5, and it is not available in `brkas-container`.
 
 When you close the tool, brkas finds what you changed. With `--save FILE`, it writes only
 those changes to a fragment file, which you can then add to `fragments:`.
@@ -197,6 +204,49 @@ When a lock file sits next to a project file, brkas reads it automatically. If y
 the lock file, everyone builds from exactly the same sources.
 
 To move to newer sources, run `brkas lock --update project.yml`, or delete the lock file.
+
+## Building in a container
+
+```
+brkas-container build project.yml   # run any brkas command inside it
+```
+
+The first time, brkas-container builds its image (`brkas:<version>`) from the Dockerfile it
+ships with, which takes a few minutes. Later runs reuse it. `brkas-container --build-image`
+builds it again, for example after updating brkas.
+
+The image is a plain Debian with the packages that the Buildroot manual asks for, cmake,
+and brkas. With cmake in the image, Buildroot does not need to compile its own, and the
+`cmake` alias of `brkas shell` works. When the project builds cmake in the SDK
+(`BR2_PACKAGE_HOST_CMAKE`), the shell uses that one instead. Nothing in it comes from Buildroot, so it can build any Buildroot version.
+
+- The work directory, the project files and the download cache appear inside the
+  container at the same paths as on your machine.
+- The container runs as your user, so the files it creates belong to you.
+- Your home directory has the same path inside the container, so `~` means the same
+  thing. It starts empty: only the directories above are shared from it.
+
+Other directories are not visible inside the container. To work on your own software from
+`brkas-container shell`, share its directory with `--mount DIR` (you can repeat it):
+
+```
+brkas-container --mount ~/src/myapp shell project.yml
+```
+
+The directory appears at the same path inside the container, and you can read and write
+it. So in the shell you can `cd ~/src/myapp` and build it with the cross compiler. The
+option exists only on the command line, so that your local paths stay out of the project
+files.
+
+Nothing of your SSH setup is passed to the container by default. For private
+repositories, there are two options, as in kas-container:
+
+- `--ssh-agent` forwards your running SSH agent to the container;
+- `--ssh-dir DIR` (or `$BRKAS_SSH_DIR`) shares a directory with SSH keys and configuration.
+  The directory is mounted read-only and copied to `~/.ssh` inside the container.
+
+With `--ssh-dir`, the container can read every key in that directory. So it is better to
+use a directory with only the keys the project needs, not your whole `~/.ssh`.
 
 ## Tests
 

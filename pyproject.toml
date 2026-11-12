@@ -17,6 +17,7 @@ schema = ["jsonschema"]
 
 [project.scripts]
 brkas = "brkas.cli:main"
+brkas-container = "brkas.container:main"
 
 [tool.setuptools]
 packages = ["brkas"]
@@ -25,4 +26,4 @@ packages = ["brkas"]
 version = {attr = "brkas.__version__"}
 
 [tool.setuptools.package-data]
-brkas = ["schema.json"]
+brkas = ["schema.json", "container/Dockerfile", "container/brkas.sh"]
