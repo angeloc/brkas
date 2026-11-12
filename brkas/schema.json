@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/angeloc/brkas/schema.json",
+  "title": "brkas project file",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["header"],
+  "$defs": {
+    "fileref": {
+      "description": "A file, relative to the declaring project file, or inside a repo",
+      "oneOf": [
+        {"type": "string"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["file"],
+          "properties": {
+            "repo": {"type": "string", "description": "a repo name: buildroot or an external"},
+            "file": {"type": "string"}
+          }
+        }
+      ]
+    },
+    "patch": {
+      "description": "A patch file, or a directory of *.patch applied in name order",
+      "oneOf": [
+        {"type": "string"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path"],
+          "properties": {
+            "repo": {"type": "string"},
+            "path": {"type": "string"}
+          }
+        },
+        {"type": "null"}
+      ]
+    },
+    "repo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url": {"type": ["string", "null"], "description": "git URL"},
+        "refspec": {"type": ["string", "null"], "description": "branch, tag or commit"},
+        "dir": {"type": ["string", "null"], "description": "an existing local directory, not managed by brkas"},
+        "path": {"type": ["string", "null"], "description": "for an external: its directory inside the repo"},
+        "patches": {
+          "type": ["object", "null"],
+          "additionalProperties": {"$ref": "#/$defs/patch"}
+        }
+      }
+    }
+  },
+  "properties": {
+    "header": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version"],
+      "properties": {
+        "version": {"const": 1},
+        "includes": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/fileref"}
+        }
+      }
+    },
+    "buildroot": {"oneOf": [{"$ref": "#/$defs/repo"}, {"type": "null"}]},
+    "externals": {
+      "type": ["object", "null"],
+      "additionalProperties": {"oneOf": [{"$ref": "#/$defs/repo"}, {"type": "null"}]}
+    },
+    "defconfig": {
+      "description": "a defconfig name of Buildroot or an external, or a file",
+      "oneOf": [{"$ref": "#/$defs/fileref"}, {"type": "null"}]
+    },
+    "fragments": {
+      "type": ["object", "null"],
+      "additionalProperties": {"oneOf": [{"$ref": "#/$defs/fileref"}, {"type": "null"}]}
+    },
+    "config": {
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^BR2_[A-Za-z0-9_]+$"},
+      "additionalProperties": {"type": ["string", "integer", "boolean", "null"]}
+    },
+    "build": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "dir": {"type": ["string", "null"], "description": "output root, default build/ in the work directory"},
+        "name": {"type": ["string", "null"], "description": "output subdirectory, default the last project file name"},
+        "targets": {"type": ["array", "null"], "items": {"type": "string"}},
+        "dl_dir": {"type": ["string", "null"], "description": "BR2_DL_DIR, shared between builds"}
+      }
+    },
+    "env": {
+      "type": ["object", "null"],
+      "additionalProperties": {"type": ["string", "number", "null"]}
+    }
+  }
+}

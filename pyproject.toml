@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "brkas"
+dynamic = ["version"]
+description = "kas-like YAML project files for Buildroot"
+readme = "README.md"
+license = "GPL-2.0-or-later"
+license-files = ["COPYING"]
+requires-python = ">=3.10"
+dependencies = ["PyYAML"]
+
+[project.optional-dependencies]
+schema = ["jsonschema"]
+
+[project.scripts]
+brkas = "brkas.cli:main"
+
+[tool.setuptools]
+packages = ["brkas"]
+
+[tool.setuptools.dynamic]
+version = {attr = "brkas.__version__"}
+
+[tool.setuptools.package-data]
+brkas = ["schema.json"]
