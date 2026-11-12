@@ -8,7 +8,7 @@ import sys
 
 import yaml
 
-from . import __version__, config
+from . import __version__, config, template
 from .buildroot import Builder
 from .config import ConfigError
 from .repos import Repo, RepoError, log
@@ -199,6 +199,36 @@ def cmd_clean(args):
                 remove(repo.root)
 
 
+def cmd_init(args):
+    """Writes a demo project in a new or empty directory, under git."""
+    target = os.path.abspath(args.directory)
+    name = os.path.basename(target)
+    files = {
+        "demo.yml": template.PROJECT,
+        "README.md": template.README.format(name=name),
+        ".gitignore": template.GITIGNORE,
+    }
+    existing = [f for f in files if os.path.exists(os.path.join(target, f))]
+    if existing:
+        raise ConfigError(f"{target}: {', '.join(existing)} already there, brkas init does not "
+                          "overwrite files")
+    os.makedirs(target, exist_ok=True)
+    for path, text in files.items():
+        with open(os.path.join(target, path), "w") as f:
+            f.write(text)
+        log(f"wrote {os.path.join(target, path)}")
+    inside = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=target,
+                            capture_output=True, text=True) if shutil.which("git") else None
+    if inside is None:
+        log("git not found: the project is not under git")
+    elif inside.returncode == 0:
+        log(f"{target} is already in a git repository")
+    else:
+        subprocess.run(["git", "init", "-q", "-b", "main", target], check=True)
+        log(f"git repository created in {target}")
+    log(f"next: cd {args.directory} && brkas build demo.yml")
+
+
 # --- arguments ---------------------------------------------------------
 
 def parser():
@@ -219,6 +249,10 @@ def parser():
             s.add_argument("-o", "--output", help="output directory (default: build/<name>)")
         return s
 
+    s = sub.add_parser("init", help="create a demo project, with a README and a .gitignore, under git",
+                       description="create a demo project, with a README and a .gitignore, under git")
+    s.set_defaults(func=cmd_init)
+    s.add_argument("directory", nargs="?", default=".", help="where to create it (default: .)")
     s = add("checkout", cmd_checkout, "check out the repos and configure the output directory")
     s.add_argument("--no-config", action="store_true", help="only check out the repos")
     s.add_argument("--reconfigure", action="store_true", help="configure again from scratch")

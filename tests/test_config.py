@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 import os
+import subprocess
 import textwrap
 
 import pytest
@@ -157,3 +158,22 @@ def test_sdk_jobs(monkeypatch):
     assert b.jobs() == [f"-j{len(os.sched_getaffinity(0))}"]
     b.project = SimpleNamespace(data={"env": {"MAKEFLAGS": "-j4"}})
     assert b.jobs() == []
+
+
+def test_init(tmp_path, capsys):
+    from brkas import cli
+    target = tmp_path / "myproject"
+    assert cli.main(["init", str(target)]) == 0
+    assert sorted(os.listdir(target)) == [".git", ".gitignore", "README.md", "demo.yml"]
+    head = subprocess.run(["git", "symbolic-ref", "HEAD"], cwd=target, capture_output=True, text=True)
+    assert head.stdout.strip() == "refs/heads/main"
+    assert "/buildroot/" in (target / ".gitignore").read_text()
+    assert "# myproject" in (target / "README.md").read_text()
+    p = config.load(str(target / "demo.yml"))
+    assert p.name == "demo" and p.buildroot()["release"] == "2026.08.1"
+    assert p.config()["BR2_x86_64"] == "y"
+    # never overwrites, and does not nest a git repository
+    assert cli.main(["init", str(target)]) == 1
+    sub = target / "sub"
+    assert cli.main(["init", str(sub)]) == 0
+    assert not (sub / ".git").exists()

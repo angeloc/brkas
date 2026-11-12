@@ -183,6 +183,7 @@ option that is not enabled.
 ## Commands
 
 ```
+brkas init [dir]                    # create a demo project to start from
 brkas checkout project.yml          # download everything and configure
 brkas build project.yml [targets]   # the same, then build
 brkas shell project.yml [-c cmd]    # open a shell to build other software for the target
@@ -204,6 +205,24 @@ Two options control the repositories:
 - `--update` fetches new commits, so that a branch moves forward.
 - `--force` throws away your local changes in the repositories. Without it, brkas stops
   instead of touching them.
+
+### brkas init
+
+`brkas init myproject` creates the directory `myproject` with a project to start from:
+
+- `demo.yml`, a project file with comments, that builds a small x86_64 system;
+- `README.md`, a few lines on how to build it;
+- `.gitignore`, which keeps out of git the directories that brkas creates.
+
+It also creates a git repository there, with `main` as its branch, unless the directory is
+already in a git repository.
+Without a directory, it uses the current one. It never overwrites a file.
+
+```
+brkas init myproject
+cd myproject
+brkas build demo.yml
+```
 
 ### brkas shell
 
