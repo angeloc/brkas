@@ -1,0 +1,25 @@
+# A small generic 64-bit ARM system, not tied to any board: Buildroot
+# cloned from its git repository at the 2026.08.1 tag, the Bootlin prebuilt
+# toolchain, busybox and ssh, no kernel, the root filesystem as a tarball:
+#   brkas build examples/aarch64.yml
+header:
+  version: 1
+
+buildroot:
+  url: https://gitlab.com/buildroot.org/buildroot.git
+  refspec: "2026.08.1"
+
+defconfig: configs/aarch64_defconfig
+
+fragments:
+  ssh: fragments/ssh.config
+
+config:
+  BR2_TARGET_GENERIC_HOSTNAME: brkas-aarch64
+  BR2_PER_PACKAGE_DIRECTORIES: y
+
+build:
+  dl_dir: ~/.cache/brkas/dl
+
+env:
+  MAKEFLAGS: -j12

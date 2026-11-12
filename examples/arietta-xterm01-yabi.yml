@@ -1,0 +1,22 @@
+# The yabi boot splash demo on the Acme Systems Arietta G25 with the
+# XTERM-01 display: Buildroot 2026.08.1 and the br-yabi external of yabi.
+#   brkas build examples/arietta-xterm01-yabi.yml
+#   brkas lock examples/arietta-xterm01-yabi.yml   # pin yabi to a commit
+header:
+  version: 1
+
+buildroot:
+  release: "2026.08.1"
+  sha256: 38a6c152490096018720a9ade379ee1e571c9bf5f93a3657a166566945a98b0d
+
+externals:
+  yabi:
+    url: https://github.com/angeloc/yabi.git
+    refspec: main
+    path: br-yabi
+
+defconfig: arietta_xterm01_yabi
+
+build:
+  name: arietta-xterm01-yabi
+  dl_dir: ~/.cache/brkas/dl

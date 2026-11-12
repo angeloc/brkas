@@ -1,0 +1,25 @@
+# A small x86_64 system, quick to build: Buildroot 2026.08.1 with the
+# Bootlin prebuilt toolchain (nothing to compile for it), busybox and ssh,
+# no kernel, the root filesystem as a tarball:
+#   brkas build examples/x86_64.yml
+header:
+  version: 1
+
+buildroot:
+  release: "2026.08.1"
+  sha256: 38a6c152490096018720a9ade379ee1e571c9bf5f93a3657a166566945a98b0d
+
+defconfig: configs/x86_64_defconfig
+
+fragments:
+  ssh: fragments/ssh.config
+
+config:
+  BR2_TARGET_GENERIC_HOSTNAME: brkas-x86-64
+  BR2_PER_PACKAGE_DIRECTORIES: y
+
+build:
+  dl_dir: ~/.cache/brkas/dl
+
+env:
+  MAKEFLAGS: -j12

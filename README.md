@@ -64,6 +64,29 @@ brkas needs Python 3.10 or newer and PyYAML. To build directly on your machine, 
 need the tools Buildroot itself needs (make, gcc, git and so on). If you use
 `brkas-container` instead, you only need Python and Docker or Podman.
 
+## Quick start
+
+```
+brkas build examples/x86_64.yml
+```
+
+This command:
+
+1. downloads Buildroot 2026.08.1 and checks its SHA-256;
+2. configures a small x86_64 system (`examples/configs/x86_64_defconfig`) that uses the
+   Bootlin prebuilt toolchain, adds SSH (`examples/fragments/ssh.config`) and sets a host
+   name;
+3. builds the result in `build/x86_64`. There is no compiler and no kernel to build, so
+   it only takes a few minutes.
+
+The `examples` directory has more projects:
+
+| File                        | What it shows                                                  |
+|-----------------------------|----------------------------------------------------------------|
+| `x86_64.yml`                | a Buildroot release tarball and a defconfig file of your own   |
+| `aarch64.yml`               | a generic ARM system, with Buildroot cloned from git at a tag  |
+| `arietta-xterm01-yabi.yml`  | a br2-external tree taken from another git repository          |
+
 ## The project file
 
 You can split a project into several files. `brkas build a.yml:b.yml` reads `a.yml` first,
@@ -186,6 +209,35 @@ The first time, brkas enables the Buildroot option that creates this environment
 changed since the last SDK, so that the SDK always matches the project. While it builds, brkas shows a spinner and writes
 the build output to `brkas-sdk.log` in the output directory. The option stays enabled
 after that. You can still turn it off in `config:`.
+
+Here is the first `brkas shell` of the x86_64 example, run in the container:
+
+```
+$ brkas-container shell examples/x86_64.yml
+brkas: buildroot: downloading https://buildroot.org/downloads/buildroot-2026.08.1.tar.gz
+brkas: buildroot: unpacking buildroot-2026.08.1.tar.gz
+brkas: configuring /home/user/work/build/x86_64 from x86_64_defconfig
+brkas: building the SDK: make sdk, output in /home/user/work/build/x86_64/brkas-sdk.log
+brkas: building the SDK: done in 01:20
+brkas: shell in /home/user/work/build/x86_64: exit to leave
+ _           _ _     _                 _
+| |__  _   _(_) | __| |_ __ ___   ___ | |_
+| '_ \| | | | | |/ _` | '__/ _ \ / _ \| __|
+| |_) | |_| | | | (_| | | | (_) | (_) | |_
+|_.__/ \__,_|_|_|\__,_|_|  \___/ \___/ \__|
+
+       Making embedded Linux easy!
+
+Some tips:
+* PATH now contains the SDK utilities
+* Standard autotools variables (CC, LD, CFLAGS) are exported
+* Kernel compilation variables (ARCH, CROSS_COMPILE, KERNELDIR) are exported
+* To configure do "./configure $CONFIGURE_FLAGS" or use
+  the "configure" alias
+* To build CMake-based projects, use the "cmake" alias
+
+(brkas) user@cd1fc8f3192e:/home/user/work/build/x86_64$
+```
 
 ### brkas menuconfig and xconfig
 
