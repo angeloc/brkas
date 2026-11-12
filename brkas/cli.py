@@ -2,7 +2,10 @@
 """brkas: set up and build Buildroot projects described in YAML files."""
 import argparse
 import os
+import subprocess
 import sys
+
+import yaml
 
 from . import __version__, config
 from .buildroot import Builder
@@ -24,19 +27,25 @@ def _patch_deps(repo):
             if isinstance(e, dict) and e.get("repo")} - {None}
 
 
-def prepare(args):
+def prepare(args, checkout=True):
     """The project and its repos, checked out with the includes they hold."""
     work = os.path.abspath(args.work_dir)
     project = config.load(args.project)
     for _ in range(8):
         repos = make_repos(project, work)
         project.repo_dirs = {name: repo.root for name, repo in repos.items()}
-        # repos providing patches to others go first
-        for repo in sorted(repos.values(), key=lambda r: bool(_patch_deps(r))):
-            repo.checkout(project.locate, update=args.update, force=args.force)
+        if checkout:
+            # repos providing patches to others go first
+            for repo in sorted(repos.values(), key=lambda r: bool(_patch_deps(r))):
+                repo.checkout(project.locate, update=args.update, force=args.force)
+        elif project.missing:
+            raise ConfigError("includes from repos not checked out yet: " + ", ".join(sorted(project.missing))
+                              + " (run brkas checkout first)")
         if not project.missing:
             return project, repos
         project = config.load(args.project, project.repo_dirs)
+        if not checkout:
+            continue
     raise ConfigError("includes keep pointing to new repos: " + ", ".join(sorted(project.missing)))
 
 
@@ -59,6 +68,24 @@ def cmd_build(args):
     b = builder(args, project, repos)
     b.configure(force=args.reconfigure)
     b.build(args.targets)
+
+
+def cmd_dump(args):
+    project, repos = prepare(args, checkout=not args.no_checkout)
+    data = dict({"header": {"version": config.FORMAT_VERSION}}, **project.data)
+    yaml.safe_dump(data, sys.stdout, sort_keys=False, default_flow_style=False)
+
+
+def cmd_for_all_repos(args):
+    project, repos = prepare(args, checkout=not args.no_checkout)
+    status = 0
+    for name, repo in repos.items():
+        env = dict(os.environ, BRKAS_REPO_NAME=name, BRKAS_REPO_DIR=repo.root,
+                   BRKAS_REPO_URL=repo.spec.get("url", ""),
+                   BRKAS_REPO_COMMIT=repo.state().get("base", ""))
+        log(f"{name}: {args.command}")
+        status |= subprocess.run(args.command, shell=True, cwd=repo.root, env=env).returncode
+    return status
 
 
 # --- arguments ---------------------------------------------------------
@@ -85,6 +112,11 @@ def parser():
     s = add("build", cmd_build, "check out, configure and build")
     s.add_argument("--reconfigure", action="store_true", help="configure again from scratch")
     s.add_argument("targets", nargs="*", help="make targets (default: build.targets, else all)")
+    s = add("dump", cmd_dump, "print the merged project")
+    s.add_argument("--no-checkout", action="store_true", help="use the repos as they are")
+    s = add("for-all-repos", cmd_for_all_repos, "run a shell command in every repo")
+    s.add_argument("--no-checkout", action="store_true", help="use the repos as they are")
+    s.add_argument("command", help="command, with BRKAS_REPO_{NAME,DIR,URL,COMMIT} set")
     return p
 
 

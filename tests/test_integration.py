@@ -91,6 +91,17 @@ def test_checkout_configures(setup, capsys):
     assert "configuring" not in capsys.readouterr().out
 
 
+def test_for_all_repos(setup, capfd):
+    tmp, proj = setup
+    work = tmp / "work"
+    project = str(proj / "board.yml")
+    assert cli.main(["--work-dir", str(work), "for-all-repos", "--no-checkout", project,
+                     'echo "repo=$BRKAS_REPO_NAME $(git rev-parse HEAD)"']) == 0
+    out = capfd.readouterr().out
+    assert "repo=buildroot " + git(BUILDROOT, "rev-parse", "HEAD") in out
+    assert "repo=test " in out
+
+
 def test_release_tarball(setup, tmp_path):
     import hashlib
     tarball = tmp_path / "buildroot-test.tar.gz"

@@ -140,6 +140,8 @@ option that is not enabled.
 ```
 brkas checkout project.yml          # download everything and configure
 brkas build project.yml [targets]   # the same, then build
+brkas dump project.yml              # print the merged project
+brkas for-all-repos project.yml 'git log -1 --oneline'
 ```
 
 brkas puts the downloaded repositories in the work directory: `buildroot/`, plus one
