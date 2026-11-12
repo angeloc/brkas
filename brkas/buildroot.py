@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Drives Buildroot for a project: configure, build."""
+"""Drives Buildroot for a project: configure, build, menuconfig."""
 import hashlib
 import json
 import os
@@ -48,6 +48,35 @@ def read_config(path):
             return parse_config(f.read())
     except OSError:
         return {}
+
+
+def config_diff(before, after):
+    """Fragment lines that turn before into after."""
+    lines = []
+    for symbol in sorted(set(before) | set(after)):
+        old, new = before.get(symbol, "n"), after.get(symbol, "n")
+        if old != new:
+            lines.append(f"# {symbol} is not set" if new == "n" else f"{symbol}={new}")
+    return lines
+
+
+def symbol_of(line):
+    m = CONFIG_LINE.match(line) or UNSET_LINE.match(line)
+    return m.group(1) if m else None
+
+
+def save_fragment(path, lines):
+    """Writes lines in a fragment file: a symbol already in it takes its
+    new value, other lines are kept."""
+    old = []
+    if os.path.exists(path):
+        with open(path) as f:
+            old = [line.rstrip("\n") for line in f]
+    names = {symbol_of(line) for line in lines}
+    kept = [line for line in old if symbol_of(line) not in names or symbol_of(line) is None]
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w") as f:
+        f.write("\n".join(kept + lines) + "\n")
 
 
 class Builder:
@@ -185,3 +214,22 @@ class Builder:
         self.configure()
         targets = targets or (self.project.data.get("build") or {}).get("targets") or []
         self.make(*targets)
+
+    def menuconfig(self, tool, save):
+        self.configure()
+        config = os.path.join(self.out, ".config")
+        before = read_config(config)
+        self.make(tool)
+        lines = config_diff(before, read_config(config))
+        if not lines:
+            log("no change")
+            return lines
+        if save:
+            save_fragment(save, lines)
+            log(f"{len(lines)} changes saved in {save}")
+        else:
+            print("\n".join(lines))
+        # The saved fragment is part of the project: no reconfigure next time
+        with open(os.path.join(self.out, ".brkas-config"), "w") as f:
+            f.write(self.digest() + "\n")
+        return lines

@@ -87,6 +87,17 @@ def cmd_build(args):
     b.build(args.targets)
 
 
+def cmd_menuconfig(args):
+    project, repos = prepare(args)
+    builder(args, project, repos).menuconfig(args.tool, args.save)
+
+
+CONFIG_TOOLS = {
+    "menuconfig": "change the configuration in menuconfig, save the changes as a fragment",
+    "xconfig": "the same, in xconfig (Qt)",
+}
+
+
 def cmd_dump(args):
     project, repos = prepare(args, checkout=not args.no_checkout)
     data = lock_data(repos) if args.lock else dict({"header": {"version": config.FORMAT_VERSION}}, **project.data)
@@ -209,6 +220,10 @@ def parser():
     s = add("build", cmd_build, "check out, configure and build")
     s.add_argument("--reconfigure", action="store_true", help="configure again from scratch")
     s.add_argument("targets", nargs="*", help="make targets (default: build.targets, else all)")
+    for tool, help in CONFIG_TOOLS.items():
+        s = add(tool, cmd_menuconfig, help)
+        s.set_defaults(tool=tool)
+        s.add_argument("--save", metavar="FRAGMENT", help="fragment file to write the changes to (default: print them)")
     s = add("dump", cmd_dump, "print the merged project, or with --lock its exact sources")
     s.add_argument("--lock", action="store_true", help="print the lock file contents")
     s.add_argument("--no-checkout", action="store_true", help="use the repos as they are")

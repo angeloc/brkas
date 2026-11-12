@@ -5,7 +5,7 @@ import textwrap
 import pytest
 
 from brkas import config
-from brkas.buildroot import parse_config, render
+from brkas.buildroot import config_diff, parse_config, render
 
 
 def write(path, text):
@@ -113,7 +113,7 @@ def test_schema_and_loop_errors(tmp_path):
         config.load(str(tmp_path / "x.yml"))
 
 
-def test_render_parse():
+def test_render_parse_diff():
     assert render("BR2_A", "y") == "BR2_A=y"
     assert render("BR2_A", True) == "BR2_A=y"
     assert render("BR2_A", "n") == "# BR2_A is not set"
@@ -123,3 +123,14 @@ def test_render_parse():
     assert render("BR2_A", 'a "b"') == 'BR2_A="a \\"b\\""'
     text = 'BR2_A=y\n# BR2_B is not set\nBR2_C="x"\n# comment\n'
     assert parse_config(text) == {"BR2_A": "y", "BR2_B": "n", "BR2_C": '"x"'}
+    before = {"BR2_A": "y", "BR2_C": '"x"'}
+    after = {"BR2_A": "n", "BR2_C": '"y"', "BR2_D": "y"}
+    assert config_diff(before, after) == ["# BR2_A is not set", 'BR2_C="y"', "BR2_D=y"]
+
+
+def test_save_fragment(tmp_path):
+    from brkas.buildroot import save_fragment
+    frag = tmp_path / "f/x.config"
+    save_fragment(str(frag), ["BR2_A=y", 'BR2_B="x"'])
+    save_fragment(str(frag), ["# BR2_A is not set", "BR2_C=y"])
+    assert frag.read_text() == 'BR2_B="x"\n# BR2_A is not set\nBR2_C=y\n'

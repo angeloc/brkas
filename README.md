@@ -49,6 +49,7 @@ If you know kas, this table shows what each part of kas becomes in brkas:
 | `local_conf_header:`             | `fragments:` (files) and `config:` (single options) |
 | `kas build`, `checkout`          | `brkas build`, `checkout`                           |
 | `kas dump --lock`, lock files    | `brkas dump --lock`, `brkas lock`, `*.lock.yml`     |
+| `kas menu`                       | `brkas menuconfig`, `xconfig`                       |
 
 ## Installation
 
@@ -141,6 +142,7 @@ option that is not enabled.
 ```
 brkas checkout project.yml          # download everything and configure
 brkas build project.yml [targets]   # the same, then build
+brkas menuconfig project.yml --save fragments/mine.config   # or xconfig
 brkas dump project.yml [--lock]     # print the merged project
 brkas lock project.yml              # write project.lock.yml
 brkas for-all-repos project.yml 'git log -1 --oneline'
@@ -158,6 +160,14 @@ Two options control the repositories:
 - `--update` fetches new commits, so that a branch moves forward.
 - `--force` throws away your local changes in the repositories. Without it, brkas stops
   instead of touching them.
+
+### brkas menuconfig and xconfig
+
+These commands open Buildroot's configuration tools: `brkas menuconfig`, or `brkas xconfig`
+for the graphical one. xconfig needs Qt 5.
+
+When you close the tool, brkas finds what you changed. With `--save FILE`, it writes only
+those changes to a fragment file, which you can then add to `fragments:`.
 
 ### Lock files
 
