@@ -1,4 +1,4 @@
-# brkas
+<img src="docs/brkas-logo.png" alt="BRKAS: making Buildroot projects easy" width="100%">
 
 brkas does for [Buildroot](https://buildroot.org) what kas does for Yocto.
 
