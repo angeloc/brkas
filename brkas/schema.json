@@ -43,6 +43,7 @@
       "properties": {
         "url": {"type": ["string", "null"], "description": "git URL"},
         "refspec": {"type": ["string", "null"], "description": "branch, tag or commit"},
+        "commit": {"type": ["string", "null"], "description": "exact commit, usually from a lock file"},
         "release": {"type": ["string", "null"], "description": "Buildroot release tarball version, e.g. 2026.08.1"},
         "tarball": {"type": ["string", "null"], "description": "tarball URL or file, default the buildroot.org release"},
         "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},

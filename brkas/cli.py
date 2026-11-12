@@ -30,7 +30,9 @@ def _patch_deps(repo):
 def prepare(args, checkout=True):
     """The project and its repos, checked out with the includes they hold."""
     work = os.path.abspath(args.work_dir)
-    project = config.load(args.project)
+    # lock --update makes a new lock: the old one must not pin the repos
+    locks = not (args.func is cmd_lock and args.update)
+    project = config.load(args.project, locks=locks)
     for _ in range(8):
         repos = make_repos(project, work)
         project.repo_dirs = {name: repo.root for name, repo in repos.items()}
@@ -43,7 +45,7 @@ def prepare(args, checkout=True):
                               + " (run brkas checkout first)")
         if not project.missing:
             return project, repos
-        project = config.load(args.project, project.repo_dirs)
+        project = config.load(args.project, project.repo_dirs, locks)
         if not checkout:
             continue
     raise ConfigError("includes keep pointing to new repos: " + ", ".join(sorted(project.missing)))
@@ -51,6 +53,20 @@ def prepare(args, checkout=True):
 
 def builder(args, project, repos):
     return Builder(project, repos, os.path.abspath(args.work_dir), args.output)
+
+
+def lock_data(repos):
+    data = {"header": {"version": config.FORMAT_VERSION}}
+    pins = {}
+    for name, repo in repos.items():
+        pin = repo.lock()
+        if pin:
+            pins[name] = pin
+    if "buildroot" in pins:
+        data["buildroot"] = pins.pop("buildroot")
+    if pins:
+        data["externals"] = pins
+    return data
 
 
 # --- commands ----------------------------------------------------------
@@ -72,8 +88,17 @@ def cmd_build(args):
 
 def cmd_dump(args):
     project, repos = prepare(args, checkout=not args.no_checkout)
-    data = dict({"header": {"version": config.FORMAT_VERSION}}, **project.data)
+    data = lock_data(repos) if args.lock else dict({"header": {"version": config.FORMAT_VERSION}}, **project.data)
     yaml.safe_dump(data, sys.stdout, sort_keys=False, default_flow_style=False)
+
+
+def cmd_lock(args):
+    project, repos = prepare(args)
+    path = config.lock_path(project.files[-1])
+    with open(path, "w") as f:
+        f.write("# Written by brkas lock: the exact sources of the project\n")
+        yaml.safe_dump(lock_data(repos), f, sort_keys=False, default_flow_style=False)
+    log(f"wrote {path}")
 
 
 def cmd_for_all_repos(args):
@@ -112,8 +137,10 @@ def parser():
     s = add("build", cmd_build, "check out, configure and build")
     s.add_argument("--reconfigure", action="store_true", help="configure again from scratch")
     s.add_argument("targets", nargs="*", help="make targets (default: build.targets, else all)")
-    s = add("dump", cmd_dump, "print the merged project")
+    s = add("dump", cmd_dump, "print the merged project, or with --lock its exact sources")
+    s.add_argument("--lock", action="store_true", help="print the lock file contents")
     s.add_argument("--no-checkout", action="store_true", help="use the repos as they are")
+    add("lock", cmd_lock, "pin the repos: write <last project file>.lock.yml")
     s = add("for-all-repos", cmd_for_all_repos, "run a shell command in every repo")
     s.add_argument("--no-checkout", action="store_true", help="use the repos as they are")
     s.add_argument("command", help="command, with BRKAS_REPO_{NAME,DIR,URL,COMMIT} set")

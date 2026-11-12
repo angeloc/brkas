@@ -54,7 +54,7 @@ def test_includes_paths_and_override(tmp_path):
         set(p.sources) == {str(tmp_path / "board.yml"), str(tmp_path / "common/base.yml")}
 
 
-def test_colon_chain(tmp_path):
+def test_colon_chain_and_lock_file(tmp_path):
     a = write(tmp_path / "a.yml", """\
         header: {version: 1}
         buildroot: {url: u, refspec: master}
@@ -65,8 +65,16 @@ def test_colon_chain(tmp_path):
         header: {version: 1}
         build: {name: chained}
         """)
+    write(tmp_path / "b.lock.yml", """\
+        header: {version: 1}
+        buildroot: {commit: "1111111111111111111111111111111111111111"}
+        externals:
+          ext: {commit: "2222222222222222222222222222222222222222"}
+        """)
     p = config.load(f"{a}:{b}")
-    assert p.externals()["ext"] == {"url": "e", "refspec": "main"}
+    assert p.buildroot()["commit"].startswith("1111")
+    assert p.externals()["ext"] == {"url": "e", "refspec": "main",
+                                    "commit": "2222222222222222222222222222222222222222"}
     assert p.name == "chained"
 
 
@@ -93,7 +101,7 @@ def test_schema_and_loop_errors(tmp_path):
     bad = write(tmp_path / "bad.yml", "header: {version: 1}\nconfig: {HOSTNAME: x}\n")
     with pytest.raises(config.ConfigError, match="config"):
         config.load(str(bad))
-    num = write(tmp_path / "num.yml", "header: {version: 1}\nbuildroot: {refspec: 2026.08}\n")
+    num = write(tmp_path / "num.yml", "header: {version: 1}\nbuildroot: {release: 2026.08}\n")
     with pytest.raises(config.ConfigError, match="quote it"):
         config.load(str(num))
     old = write(tmp_path / "old.yml", "header: {version: 2}\n")

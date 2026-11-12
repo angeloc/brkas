@@ -5,6 +5,7 @@ import subprocess
 import textwrap
 
 import pytest
+import yaml
 
 from brkas import cli
 
@@ -89,6 +90,39 @@ def test_checkout_configures(setup, capsys):
     # nothing changed: no new configuration
     assert cli.main(["--work-dir", str(work), "checkout", project]) == 0
     assert "configuring" not in capsys.readouterr().out
+
+
+def test_lock_and_dump(setup, capsys):
+    tmp, proj = setup
+    work = tmp / "work"
+    project = str(proj / "board.yml")
+    assert cli.main(["--work-dir", str(work), "lock", project]) == 0
+    with open(proj / "board.lock.yml") as f:
+        lock = yaml.safe_load(f)
+    assert lock["buildroot"]["commit"] == git(BUILDROOT, "rev-parse", "HEAD")
+    assert len(lock["externals"]["test"]["commit"]) == 40
+    capsys.readouterr()
+    assert cli.main(["--work-dir", str(work), "dump", "--lock", project]) == 0
+    out = capsys.readouterr().out
+    dumped = yaml.safe_load("\n".join(l for l in out.splitlines() if not l.startswith("brkas:")))
+    assert dumped == lock
+
+    # the lock is used: the same commits, nothing to check out again
+    assert cli.main(["--work-dir", str(work), "checkout", project]) == 0
+    assert "checking out" not in capsys.readouterr().out
+
+    # a new upstream commit: the lock holds, even with --update, until lock --update
+    ext = tmp / "ext-src"
+    write(ext / "new.txt", "new\n")
+    git(ext, "add", ".")
+    git(ext, "commit", "-q", "-m", "new")
+    assert cli.main(["--work-dir", str(work), "checkout", "--update", project]) == 0
+    assert not (work / "test/new.txt").exists()
+    assert cli.main(["--work-dir", str(work), "lock", "--update", project]) == 0
+    with open(proj / "board.lock.yml") as f:
+        assert yaml.safe_load(f)["externals"]["test"]["commit"] == git(ext, "rev-parse", "HEAD")
+    assert (work / "test/new.txt").exists()
+    assert (work / "test/patched.txt").exists()
 
 
 def test_for_all_repos(setup, capfd):

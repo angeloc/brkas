@@ -5,7 +5,8 @@ A project is one or more YAML files given on the command line, joined
 with ':' (later files override earlier ones). Each file may include
 others in header.includes, either relative to itself or from a repo
 (after that repo is checked out). Includes come first, the including
-file overrides them.
+file overrides them. A file next to a top-level file, with .lock.yml
+in place of .yml, is included last: it pins the repos to commits.
 
 Merging: dictionaries merge key by key, recursively; any other value
 replaces the previous one; a key set to null is removed. Paths in
@@ -131,10 +132,15 @@ def load_file(path):
     return data
 
 
+def lock_path(path):
+    root, ext = os.path.splitext(path)
+    return root + ".lock" + (ext or ".yml")
+
+
 class Project:
     """The merged configuration of a chain of project files."""
 
-    def __init__(self, files, repo_dirs=None):
+    def __init__(self, files, repo_dirs=None, locks=True):
         self.files = [os.path.abspath(f) for f in files]
         self.repo_dirs = dict(repo_dirs or {})
         self.missing = set()  # repos whose includes are still to read
@@ -142,6 +148,10 @@ class Project:
         self.data = {}
         for path in self.files:
             self.data = merge(self.data, self._load(path, []))
+            lock = lock_path(path)
+            if locks and os.path.exists(lock):
+                self.sources.append(lock)
+                self.data = merge(self.data, _bind_paths(load_file(lock), os.path.dirname(lock)))
         self.data.pop("header", None)
 
     def _load(self, path, stack):
@@ -188,9 +198,9 @@ class Project:
         return path
 
 
-def load(spec, repo_dirs=None):
-    """Loads 'a.yml:b.yml'."""
+def load(spec, repo_dirs=None, locks=True):
+    """Loads 'a.yml:b.yml'; locks=False ignores their lock files."""
     files = [f for f in spec.split(":") if f]
     if not files:
         raise ConfigError("no project file given")
-    return Project(files, repo_dirs)
+    return Project(files, repo_dirs, locks)

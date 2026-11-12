@@ -201,7 +201,7 @@ class Repo:
         if self.spec.get("sha256") and digest != self.spec["sha256"]:
             raise RepoError(f"{self.name}: {tarball}: sha256 {digest}, expected {self.spec['sha256']}")
         if not self.spec.get("sha256"):
-            log(f"{self.name}: no sha256 given, {os.path.basename(tarball)} is {digest}")
+            log(f"{self.name}: no sha256 given, {os.path.basename(tarball)} is {digest} (brkas lock records it)")
         patches = self.patch_files(locate)
         wanted = {"sha256": digest, "patches": [sha256(p) for p in patches]}
         state = self.state()
@@ -235,6 +235,15 @@ class Repo:
             self._checkout_release(locate, force)
         elif not os.path.isdir(self.root):
             raise RepoError(f"{self.name}: {self.root} not found")
+
+    def lock(self):
+        """What pins this repo: its base commit or tarball hash."""
+        if self.kind == "git":
+            base = self.state().get("base") or self.resolve()
+            return {"commit": base}
+        if self.kind == "release":
+            return {"sha256": self.state().get("sha256") or sha256(self._fetch_tarball())}
+        return None
 
     def describe(self):
         if self.kind == "git":

@@ -48,6 +48,7 @@ If you know kas, this table shows what each part of kas becomes in brkas:
 | `machine:`, `distro:`            | `defconfig:`                                        |
 | `local_conf_header:`             | `fragments:` (files) and `config:` (single options) |
 | `kas build`, `checkout`          | `brkas build`, `checkout`                           |
+| `kas dump --lock`, lock files    | `brkas dump --lock`, `brkas lock`, `*.lock.yml`     |
 
 ## Installation
 
@@ -140,7 +141,8 @@ option that is not enabled.
 ```
 brkas checkout project.yml          # download everything and configure
 brkas build project.yml [targets]   # the same, then build
-brkas dump project.yml              # print the merged project
+brkas dump project.yml [--lock]     # print the merged project
+brkas lock project.yml              # write project.lock.yml
 brkas for-all-repos project.yml 'git log -1 --oneline'
 ```
 
@@ -153,6 +155,16 @@ Two options control the repositories:
 - `--update` fetches new commits, so that a branch moves forward.
 - `--force` throws away your local changes in the repositories. Without it, brkas stops
   instead of touching them.
+
+### Lock files
+
+`brkas lock project.yml` writes `project.lock.yml`. This file records the exact commit
+of every git repository and the SHA-256 of every tarball.
+
+When a lock file sits next to a project file, brkas reads it automatically. If you commit
+the lock file, everyone builds from exactly the same sources.
+
+To move to newer sources, run `brkas lock --update project.yml`, or delete the lock file.
 
 ## Tests
 
