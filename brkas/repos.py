@@ -44,6 +44,41 @@ def run(cmd, cwd=None, check=True, quiet=True):
     return p
 
 
+def exclude_from_git(path):
+    """Keeps a directory that brkas creates out of git: when it is inside a
+    git repository, such as the project of the user, it is listed in the
+    .git/info/exclude of that repository. This file is local to the clone
+    and never committed. A repository at path itself (a clone made by
+    brkas) is not the one that counts: the search starts from its parent."""
+    path = os.path.abspath(path)
+    parent = os.path.dirname(path)
+    try:
+        p = subprocess.run(["git", "-C", parent, "rev-parse", "--show-toplevel", "--git-path", "info/exclude"],
+                           text=True, capture_output=True)
+    except OSError:
+        return  # no git
+    if p.returncode or not os.path.isdir(parent):
+        return  # not in a git repository
+    top, exclude = p.stdout.splitlines()[:2]
+    exclude = os.path.join(parent, exclude)
+    rel = os.path.relpath(path, top)
+    if rel == "." or rel.startswith(".."):
+        return
+    line = "/" + rel.replace(os.sep, "/") + "/"
+    try:
+        with open(exclude) as f:
+            lines = f.read().splitlines()
+    except OSError:
+        lines = []
+    if line in lines:
+        return
+    os.makedirs(os.path.dirname(exclude), exist_ok=True)
+    with open(exclude, "a") as f:
+        if "# added by brkas" not in lines:
+            f.write("# added by brkas\n")
+        f.write(line + "\n")
+
+
 def sha256(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -147,6 +182,7 @@ class Repo:
             run(["git", "clone", "-q", "--no-checkout", self.spec["url"], self.root])
             cloned = True
             force = True  # an empty work tree after --no-checkout
+        exclude_from_git(self.root)
         base = self.resolve(update)
         patches = self.patch_files(locate)
         wanted = {"base": base, "patches": [sha256(p) for p in patches]}
@@ -186,6 +222,7 @@ class Repo:
             return src
         dl = os.path.join(self.work_dir, "downloads")
         os.makedirs(dl, exist_ok=True)
+        exclude_from_git(dl)
         dest = os.path.join(dl, os.path.basename(src))
         if not os.path.exists(dest):
             log(f"{self.name}: downloading {src}")
@@ -213,6 +250,7 @@ class Repo:
             shutil.rmtree(self.root)
         log(f"{self.name}: unpacking {os.path.basename(tarball)}")
         os.makedirs(self.root)
+        exclude_from_git(self.root)
         with tarfile.open(tarball) as tar:
             members = []
             for m in tar.getmembers():

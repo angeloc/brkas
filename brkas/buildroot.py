@@ -10,7 +10,7 @@ import tempfile
 import time
 
 from .config import ConfigError, expand
-from .repos import RepoError, log, run
+from .repos import RepoError, exclude_from_git, log, run
 
 CONFIG_LINE = re.compile(r"^(BR2_[A-Za-z0-9_]+)=(.*)$")
 ENVIRONMENT_SETUP = "BR2_PACKAGE_HOST_ENVIRONMENT_SETUP"
@@ -93,6 +93,8 @@ class Builder:
         if not os.path.isabs(root):
             root = os.path.join(work_dir, root)
         self.out = out_dir or os.path.join(root, project.name)
+        # what to keep out of git: the root of the outputs, or the one asked
+        self.out_root = out_dir or root
         self.br = repos["buildroot"].tree
         self.externals = [repos[name].tree for name in project.externals()]
         # brkas shell needs host/environment-setup: the shell enables its
@@ -226,6 +228,7 @@ class Builder:
             except OSError:
                 pass
         os.makedirs(self.out, exist_ok=True)
+        exclude_from_git(self.out_root)
         kind = self.defconfig()
         log(f"configuring {self.out}" + (f" from {os.path.basename(kind[1])}" if kind else ""))
         if kind is None:

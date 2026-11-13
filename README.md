@@ -200,6 +200,11 @@ brkas puts the downloaded repositories in the work directory: `buildroot/`, plus
 directory for each external. Builds go in `build/`. The work directory is the current
 directory, unless you set `--work-dir` or `$BRKAS_WORK_DIR`.
 
+When the work directory is inside a git repository, such as your project, brkas keeps what it
+creates out of git: it adds each directory it creates (`buildroot/`, the externals, `build/`,
+`downloads/`) to `.git/info/exclude` of that repository. This file belongs to your clone only
+and is never committed, so `git status` and `git add -A` don't see these directories.
+
 Two options control the repositories:
 
 - `--update` fetches new commits, so that a branch moves forward.
@@ -212,7 +217,8 @@ Two options control the repositories:
 
 - `demo.yml`, a project file with comments, that builds a small x86_64 system;
 - `README.md`, a few lines on how to build it;
-- `.gitignore`, which keeps out of git the directories that brkas creates.
+- `.gitignore`, which keeps out of git the directories that brkas creates, for everyone who
+  clones the project.
 
 It also creates a git repository there, with `main` as its branch, unless the directory is
 already in a git repository.

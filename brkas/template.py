@@ -52,10 +52,9 @@ The result is in `build/demo/images/`.
 """
 
 GITIGNORE = """\
-# What brkas downloads and builds in the project directory.
+# What brkas downloads and builds in the project directory. brkas also lists
+# every directory it creates, externals included, in .git/info/exclude.
 /build/
 /buildroot/
 /downloads/
-# Add one line for each external you check out, for example:
-# /mine/
 """

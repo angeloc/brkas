@@ -187,6 +187,22 @@ def test_shell_for_all_repos_clean(setup, capfd, monkeypatch):
     assert sorted(os.listdir(work)) == ["mine"]
 
 
+def test_git_exclude(setup, tmp_path):
+    """In a work directory inside a git repository, what brkas creates is
+    listed in .git/info/exclude, so git does not see it."""
+    tmp, proj = setup
+    work = tmp_path / "repo"
+    git(tmp_path, "init", "-q", str(work))
+    write(work / "notes.txt", "mine\n")
+    assert cli.main(["--work-dir", str(work), "checkout", str(proj / "board.yml")]) == 0
+    exclude = (work / ".git/info/exclude").read_text().splitlines()
+    assert {"/buildroot/", "/test/", "/build/"} <= set(exclude)
+    assert git(work, "status", "--porcelain") == "?? notes.txt"
+    # run again: nothing is added twice
+    assert cli.main(["--work-dir", str(work), "checkout", str(proj / "board.yml")]) == 0
+    assert (work / ".git/info/exclude").read_text().splitlines() == exclude
+
+
 def test_release_tarball(setup, tmp_path):
     import hashlib
     tarball = tmp_path / "buildroot-test.tar.gz"
