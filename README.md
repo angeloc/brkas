@@ -196,9 +196,20 @@ brkas clean --all                   # remove everything brkas made in the work d
 brkas clean --cache project.yml     # remove only the download cache (build.dl_dir)
 ```
 
-brkas puts the downloaded repositories in the work directory: `buildroot/`, plus one
-directory for each external. Builds go in `build/`. The work directory is the current
-directory, unless you set `--work-dir` or `$BRKAS_WORK_DIR`.
+brkas puts everything it downloads and builds in the **work directory**. This is the
+directory you run brkas from, unless you set `--work-dir` or `$BRKAS_WORK_DIR`:
+
+| In the work directory | What it is                                      |
+|-----------------------|-------------------------------------------------|
+| `buildroot/`          | the Buildroot sources                           |
+| one directory per external, named after it | the externals cloned from git |
+| `build/<name>/`       | the output of the build                         |
+| `downloads/`          | the release tarballs                            |
+
+Paths written in a project file are not affected: fragments, patches and `dir:` externals
+are found relative to that file, wherever you run brkas from. So run brkas from the same
+work directory every time. From another directory, it clones and builds everything again
+there.
 
 When the work directory is inside a git repository, such as your project, brkas keeps what it
 creates out of git: it adds each directory it creates (`buildroot/`, the externals, `build/`,
@@ -295,10 +306,46 @@ those changes to a fragment file, which you can then add to `fragments:`.
 `brkas lock project.yml` writes `project.lock.yml`. This file records the exact commit
 of every git repository and the SHA-256 of every tarball.
 
-When a lock file sits next to a project file, brkas reads it automatically. If you commit
-the lock file, everyone builds from exactly the same sources.
+The lock file is written next to the project file, not in the work directory. When a lock
+file sits next to a project file, brkas reads it automatically. If you commit the lock file,
+everyone builds from exactly the same sources.
 
-To move to newer sources, run `brkas lock --update project.yml`, or delete the lock file.
+While the lock file is there, brkas uses the commits it records, even with `--update`, and
+`brkas lock` writes them again unchanged. To move to newer sources, run
+`brkas lock --update project.yml`: it fetches the repositories and records their new commits.
+Review the change of the lock file, then commit it.
+
+Some things to know:
+
+- With a chain of files, `brkas lock a.yml:b.yml` writes `b.lock.yml`, next to the **last**
+  file. If the last file is a personal overlay, the lock goes next to it. Lock the main file
+  alone, or put the overlay first.
+- A lock cannot pin an external declared with `dir:`: it is a directory on your machine.
+- If a pinned commit disappears upstream, for example after a force-push, the checkout fails
+  with "not found".
+
+## Organizing a project
+
+There are two good ways to keep a brkas project in git.
+
+**The work directory is the project.** This is what `brkas init` sets up: you run brkas in
+the project, and what it creates stays out of git (see [Commands](#commands)).
+
+- Commit the project file, its lock file, your fragments, and your own externals, declared
+  with `dir:` in a subdirectory.
+- To release, run `brkas lock`, commit, then tag the commit.
+
+**The project repository holds only project files.** It holds the project file, its lock
+file and fragments; Buildroot and every external come from `url:` or a tarball. You build
+it from a separate work directory, which you can delete and recreate at any time:
+
+```
+cd ~/work/myboard
+brkas build ~/src/myboard-project/demo.yml
+```
+
+The downloads and the build go to `~/work/myboard`, and `brkas lock` writes the lock file
+into `~/src/myboard-project`, where you commit it.
 
 ## Building in a container
 
