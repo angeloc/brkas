@@ -79,6 +79,33 @@ def exclude_from_git(path):
         f.write(line + "\n")
 
 
+def unsaved_work(root):
+    """What would be lost by deleting a clone made by brkas: changed or new
+    files, and commits that are on no remote. Returns a description, or
+    None when there is nothing to lose (or root is no git clone)."""
+    if not os.path.isdir(os.path.join(root, ".git")):
+        return None
+
+    def git(*args):
+        return subprocess.run(["git", "-C", root, *args], text=True, capture_output=True).stdout.strip()
+
+    found = []
+    changed = git("status", "--porcelain")
+    if changed:
+        n = len(changed.splitlines())
+        found.append(f"{n} changed or new file" + ("s" if n != 1 else ""))
+    try:
+        with open(os.path.join(root, ".git", "brkas.json")) as f:
+            left_at = json.load(f).get("head")
+    except (OSError, ValueError):
+        left_at = None
+    # brkas applies patches as local commits: only commits made after it
+    # left the clone count, and only when no remote has them
+    if left_at and git("rev-parse", "HEAD") != left_at and git("rev-list", "-n1", "HEAD", "--not", "--remotes"):
+        found.append("commits that are on no remote")
+    return " and ".join(found) or None
+
+
 def sha256(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:

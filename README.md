@@ -211,6 +211,11 @@ Two options control the repositories:
 - `--force` throws away your local changes in the repositories. Without it, brkas stops
   instead of touching them.
 
+`brkas clean --all` deletes the repositories that brkas cloned. Before deleting anything, it
+checks each one for work that is saved nowhere else: changed or new files, and commits that
+are on no remote. If it finds some, it lists them and deletes nothing. Commit and push that
+work first, or add `--force` to delete it anyway.
+
 ### brkas init
 
 `brkas init myproject` creates the directory `myproject` with a project to start from:

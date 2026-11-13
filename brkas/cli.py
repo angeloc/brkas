@@ -11,7 +11,7 @@ import yaml
 from . import __version__, config, template
 from .buildroot import Builder
 from .config import ConfigError
-from .repos import Repo, RepoError, log
+from .repos import Repo, RepoError, log, unsaved_work
 
 
 def make_repos(project, work_dir):
@@ -163,17 +163,32 @@ def remove_cache(path):
         pass
 
 
-def clean_work_dir(work):
+def check_unsaved(repos, force):
+    """Refuses to delete clones holding work of the user, unless forced."""
+    if force:
+        return
+    unsaved = [(path, what) for path in repos for what in [unsaved_work(path)] if what]
+    if unsaved:
+        raise ConfigError("clean would delete work that is saved nowhere else:\n" +
+                          "\n".join(f"  {path}: {what}" for path, what in unsaved) +
+                          "\ncommit and push it, or use --force to delete it anyway")
+
+
+def clean_work_dir(work, force=False):
     """clean --all without a project: what brkas made in the work
     directory, i.e. build/, downloads/ and the repos it checked out (those
     with its state file)."""
-    for name in ("build", "downloads"):
-        remove(os.path.join(work, name))
+    repos = []
     for entry in sorted(os.listdir(work)) if os.path.isdir(work) else []:
         path = os.path.join(work, entry)
         if os.path.exists(os.path.join(path, ".git", "brkas.json")) or \
                 os.path.exists(os.path.join(path, ".brkas.json")):
-            remove(path)
+            repos.append(path)
+    check_unsaved(repos, force)
+    for name in ("build", "downloads"):
+        remove(os.path.join(work, name))
+    for path in repos:
+        remove(path)
 
 
 def cmd_clean(args):
@@ -183,8 +198,11 @@ def cmd_clean(args):
             raise ConfigError("clean --cache needs a project: the cache is its build.dl_dir")
         if not args.all or args.output:
             raise ConfigError("clean needs a project, or --all to clean the whole work directory")
-        return clean_work_dir(work)
+        return clean_work_dir(work, args.force)
     project = config.load(args.project)
+    repos = [repo.root for repo in make_repos(project, work).values() if repo.kind != "local"] \
+        if args.all else []
+    check_unsaved(repos, args.force)  # before deleting anything
     if args.cache:
         remove_cache(download_cache(project, work))
         if not args.all:
@@ -193,10 +211,8 @@ def cmd_clean(args):
     root = build.get("dir") or "build"
     out_dir = args.output or os.path.join(root if os.path.isabs(root) else os.path.join(work, root), project.name)
     remove(out_dir)
-    if args.all:
-        for name, repo in make_repos(project, work).items():
-            if repo.kind != "local":
-                remove(repo.root)
+    for path in repos:
+        remove(path)
 
 
 def cmd_init(args):
@@ -277,6 +293,9 @@ def parser():
                                               "work directory")
     s.add_argument("-o", "--output", help="output directory (default: build/<name>)")
     s.add_argument("--all", action="store_true", help="also remove the repos brkas checked out")
+    s.add_argument("--force", action="store_true",
+                   help="with --all, also remove repos holding changes or commits that are saved "
+                        "nowhere else")
     s.add_argument("--cache", action="store_true",
                    help="remove the download cache of the project (build.dl_dir) and nothing else; "
                         "with --all, the cache as well")

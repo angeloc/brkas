@@ -179,6 +179,19 @@ def test_shell_for_all_repos_clean(setup, capfd, monkeypatch):
     assert not (tmp / "dlcache").exists()
     assert (work / "buildroot").exists() and (work / "build/qemu").exists()
 
+    # work saved nowhere else in a clone: --all refuses to delete it, unless --force
+    write(work / "test/notes.txt", "my work\n")
+    assert cli.main(["--work-dir", str(work), "clean", "--all", project]) == 1
+    assert cli.main(["--work-dir", str(work), "clean", "--all"]) == 1
+    assert (work / "test/notes.txt").exists() and (work / "build/qemu").exists()
+    os.remove(work / "test/notes.txt")
+    git(work / "test", "commit", "-q", "--allow-empty", "-m", "mine")
+    assert cli.main(["--work-dir", str(work), "clean", "--all", project]) == 1
+    capfd.readouterr()
+    assert cli.main(["--work-dir", str(work), "clean", "--all", "--force", project]) == 0
+    assert not (work / "test").exists()
+    assert cli.main(["--work-dir", str(work), "checkout", project]) == 0
+
     # without a project: --all is needed, and removes only what brkas made
     assert cli.main(["--work-dir", str(work), "clean"]) == 1
     write(work / "mine/keep.txt", "mine\n")
