@@ -163,7 +163,7 @@ env:                         # environment variables for make
                              # several packages at the same time
 
 container:                   # default settings for brkas-container
-  image: brkas:0.1.3
+  image: brkas:0.1.4
   engine: podman
   options: [--network=host]
 ```
