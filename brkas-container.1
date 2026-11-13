@@ -1,0 +1,71 @@
+.TH BRKAS\-CONTAINER 1 "2026-11-13" "brkas" "User Commands"
+.SH NAME
+brkas\-container \- run brkas in a container
+.SH SYNOPSIS
+.B brkas\-container
+[\fIoptions\fR] \fIbrkas-command\fR [\fIarguments\fR]
+.SH DESCRIPTION
+.B brkas\-container
+runs a
+.BR brkas (1)
+command in a Docker or Podman container, as the calling user.
+.PP
+The image is a Debian with the host packages of Buildroot, cmake and brkas.
+When the default image is missing, it is built from the Dockerfile shipped
+with brkas.
+.PP
+Shared with the container, at the same paths: the work directory, the
+directories of the project files, the download cache, the output root and the
+current directory. The home directory has the same path and starts empty.
+.SH OPTIONS
+.TP
+.BI \-\-engine " engine"
+\fBpodman\fR or \fBdocker\fR. Default: \fBcontainer.engine\fR of the
+project, else the one installed, podman first.
+.TP
+.BI \-\-image " image"
+Default: \fB$BRKAS_CONTAINER_IMAGE\fR, else \fBcontainer.image\fR of the
+project, else \fBbrkas:\fR\fIversion\fR.
+.TP
+.B \-\-build\-image
+Build the image from the Dockerfile shipped with brkas.
+.TP
+.BI \-\-work\-dir " dir"
+Work directory. Default: \fB$BRKAS_WORK_DIR\fR, else the current directory.
+.TP
+.BI \-\-mount " dir"
+Share \fIdir\fR read-write, at the same path. May be repeated.
+.TP
+.B \-\-ssh\-agent
+Forward the SSH agent of \fB$SSH_AUTH_SOCK\fR.
+.TP
+.BI \-\-ssh\-dir " dir"
+Mount \fIdir\fR read-only and copy it to \fB~/.ssh\fR in the container.
+Default: \fB$BRKAS_SSH_DIR\fR. The container can read every key in it.
+.TP
+.BI \-\-engine\-option " option"
+Pass \fIoption\fR to \fIengine\fR \fBrun\fR. May be repeated.
+.PP
+\fBcontainer.options\fR of the project are passed the same way. The
+\fBxconfig\fR command is not available.
+.SH ENVIRONMENT
+.TP
+.B BRKAS_CONTAINER_IMAGE
+Default image.
+.TP
+.B BRKAS_WORK_DIR
+Default work directory.
+.TP
+.B BRKAS_SSH_DIR
+Default of \fB\-\-ssh\-dir\fR.
+.TP
+.BR http_proxy ", " https_proxy ", " no_proxy ", " TERM
+Passed to the container, also in upper case for the proxies.
+.SH EXIT STATUS
+The status of the brkas command, or of the image build.
+.SH EXAMPLE
+.nf
+brkas\-container \-\-mount ~/src/myapp shell demo.yml
+.fi
+.SH SEE ALSO
+.BR brkas (1)

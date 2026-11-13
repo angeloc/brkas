@@ -25,5 +25,8 @@ packages = ["brkas"]
 [tool.setuptools.dynamic]
 version = {attr = "brkas.__version__"}
 
+[tool.setuptools.data-files]
+"share/man/man1" = ["brkas.1", "brkas-container.1"]
+
 [tool.setuptools.package-data]
 brkas = ["schema.json", "container/Dockerfile", "container/brkas.sh"]

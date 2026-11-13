@@ -1,0 +1,176 @@
+.TH BRKAS 1 "2026-11-13" "brkas" "User Commands"
+.SH NAME
+brkas \- build Buildroot projects described in YAML files
+.SH SYNOPSIS
+.B brkas
+[\fB\-\-work\-dir\fR \fIdir\fR] \fIcommand\fR [\fIoptions\fR] [\fIproject\fR] [\fIarguments\fR]
+.SH DESCRIPTION
+.B brkas
+reads a project file, which names a Buildroot tree, br2-external trees, a
+defconfig and configuration changes. It checks out the sources, configures
+Buildroot and builds the project.
+.PP
+\fIproject\fR is a project file, or several joined with a colon
+(\fIa.yml\fR:\fIb.yml\fR); later files override earlier ones.
+.SH GLOBAL OPTIONS
+.TP
+.BI \-\-work\-dir " dir"
+Work directory, see FILES. Default: \fB$BRKAS_WORK_DIR\fR, else the current
+directory.
+.TP
+.B \-\-version
+Print the version.
+.SH COMMANDS
+.TP
+.BR init " [\fIdirectory\fR]"
+Create a demo project in \fIdirectory\fR (default: the current one):
+\fBdemo.yml\fR, \fBREADME.md\fR and \fB.gitignore\fR. Run \fBgit init \-b
+main\fR unless the directory is in a git repository. Never overwrite a file.
+.TP
+.BI checkout " project"
+Check out the sources and configure the output directory.
+.TP
+.BI build " project " "\fR[\fItarget\fR...]"
+Check out, configure and run make. The default targets come from
+\fBbuild.targets\fR, else \fBall\fR.
+.TP
+.BI shell " project"
+Run bash in the output directory, with \fBhost/environment-setup\fR sourced.
+Enable \fBBR2_PACKAGE_HOST_ENVIRONMENT_SETUP\fR, and run \fBmake sdk\fR
+when the SDK is missing or the configuration changed. The output of
+\fBmake sdk\fR goes to \fBbrkas\-sdk.log\fR in the output directory.
+.TP
+.BI menuconfig " project"
+.TQ
+.BI xconfig " project"
+Run the Buildroot configuration tool, then print the options that changed.
+xconfig needs Qt 5.
+.TP
+.BI dump " project"
+Print the merged project.
+.TP
+.BI lock " project"
+Write the lock file of the project, see FILES.
+.TP
+.BI for\-all\-repos " project command"
+Run the shell \fIcommand\fR in each repository, with \fBBRKAS_REPO_NAME\fR,
+\fBBRKAS_REPO_DIR\fR, \fBBRKAS_REPO_URL\fR and \fBBRKAS_REPO_COMMIT\fR set.
+.TP
+.BR clean " [\fIproject\fR]"
+Remove the output directory of \fIproject\fR. Without \fIproject\fR,
+\fB\-\-all\fR is needed.
+.SH OPTIONS
+These options apply to every command that takes a project, except
+\fBclean\fR and \fBinit\fR:
+.TP
+.B \-\-update
+Fetch the repositories, to follow their branches. \fBlock \-\-update\fR also
+ignores the existing lock file.
+.TP
+.B \-\-force
+Discard local changes in the repositories.
+.TP
+.BI \-o ", " \-\-output " dir"
+Output directory. Default: \fBbuild/\fR\fIname\fR in the work directory.
+.PP
+Options of single commands:
+.TP
+.B \-\-no\-config
+\fBcheckout\fR: only check out the sources.
+.TP
+.B \-\-reconfigure
+\fBcheckout\fR, \fBbuild\fR: configure again from scratch.
+.TP
+.BI \-c ", " \-\-command " command"
+\fBshell\fR: run \fIcommand\fR instead of an interactive shell.
+.TP
+.BI \-\-save " fragment"
+\fBmenuconfig\fR, \fBxconfig\fR: write the changed options to \fIfragment\fR.
+.TP
+.B \-\-lock
+\fBdump\fR: print what \fBlock\fR would write.
+.TP
+.B \-\-no\-checkout
+\fBdump\fR, \fBfor\-all\-repos\fR: use the repositories as they are.
+.TP
+.B \-\-all
+\fBclean\fR: also remove the repositories that brkas checked out. Without a
+project: remove \fBbuild/\fR, \fBdownloads/\fR and every repository brkas
+checked out in the work directory.
+.TP
+.B \-\-cache
+\fBclean\fR: remove only the download cache of the project; with
+\fB\-\-all\fR, the cache too.
+.TP
+.B \-\-force
+\fBclean\fR: remove repositories even when they hold changed or new files,
+or commits that are on no remote. Without it, \fBclean\fR removes nothing in
+that case.
+.SH PROJECT FILE
+A YAML mapping with these keys:
+.TP
+.B header
+\fBversion\fR: 1. \fBincludes\fR: files to read first, as paths or
+\fB{repo:, file:}\fR.
+.TP
+.B buildroot
+One of: \fBurl\fR and \fBrefspec\fR (git); \fBrelease\fR or \fBtarball\fR,
+with \fBsha256\fR; \fBdir\fR (an existing directory). \fBpatches\fR: patch
+files or directories, applied after the checkout.
+.TP
+.B externals
+br2-external trees by name, with the keys of \fBbuildroot\fR, plus
+\fBpath\fR, the external inside the repository.
+.TP
+.B defconfig
+A defconfig name, a file path, or \fB{repo:, file:}\fR.
+.TP
+.B fragments
+Configuration fragments by name, applied in order.
+.TP
+.B config
+Single \fBBR2_\fR options, applied last.
+.TP
+.B build
+\fBdir\fR, \fBname\fR, \fBtargets\fR, \fBdl_dir\fR.
+.TP
+.B env
+Environment variables for make.
+.TP
+.B container
+Defaults for \fBbrkas\-container\fR(1): \fBimage\fR, \fBengine\fR,
+\fBoptions\fR.
+.PP
+Mappings merge key by key, other values replace earlier ones, and \fBnull\fR
+removes a key. Paths are relative to the file that contains them.
+.SH FILES
+.TP
+.I work directory
+\fBbuildroot/\fR, one directory per external cloned from git,
+\fBbuild/\fR\fIname\fR\fB/\fR, \fBdownloads/\fR. Each directory brkas
+creates inside a git repository is added to its \fB.git/info/exclude\fR.
+.TP
+.IB project .lock.yml
+Next to the project file; next to the last file of a chain. The commit of
+each git repository and the SHA-256 of each tarball. Read automatically.
+.SH ENVIRONMENT
+.TP
+.B BRKAS_WORK_DIR
+Default work directory.
+.TP
+.B BR2_DL_DIR
+Download cache, when the project sets no \fBbuild.dl_dir\fR.
+.TP
+.BR BRKAS_OUTPUT ", " BRKAS_BUILDROOT
+Set in \fBshell\fR: the output directory and the Buildroot tree.
+.SH EXIT STATUS
+0 on success, 1 on error, 130 when interrupted. \fBshell\fR exits with the
+status of the shell; \fBfor\-all\-repos\fR is nonzero when a command failed.
+.SH EXAMPLE
+.nf
+brkas init myproject
+cd myproject
+brkas build demo.yml
+.fi
+.SH SEE ALSO
+.BR brkas\-container (1)

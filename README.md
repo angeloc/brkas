@@ -60,7 +60,9 @@ Install brkas from [PyPI](https://pypi.org/project/brkas/):
 pipx install brkas
 ```
 
-This installs two commands, `brkas` and `brkas-container`.
+This installs two commands, `brkas` and `brkas-container`, and their man pages: `man brkas`
+and `man brkas-container` show them. pipx puts the man pages in `~/.local/share/man`, where
+`man` finds them.
 
 To also check your project files against the schema of brkas, install it with the `schema`
 extra:
