@@ -360,9 +360,12 @@ ships with, which takes a few minutes. Later runs reuse it. `brkas-container --b
 builds it again, for example after updating brkas.
 
 The image is a plain Debian with the packages that the Buildroot manual asks for, cmake,
-and brkas. With cmake in the image, Buildroot does not need to compile its own, and the
+brkas and [brdevtool](https://github.com/angeloc/brdevtool). With cmake in the image, Buildroot does not need to compile its own, and the
 `cmake` alias of `brkas shell` works. When the project builds cmake in the SDK
 (`BR2_PACKAGE_HOST_CMAKE`), the shell uses that one instead. Nothing in it comes from Buildroot, so it can build any Buildroot version.
+
+brdevtool works on the source of the Buildroot packages. In `brkas-container shell`, it
+needs no option: the shell tells it where the output directory is.
 
 - The work directory, the project files and the download cache appear inside the
   container at the same paths as on your machine.

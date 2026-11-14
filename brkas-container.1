@@ -10,7 +10,8 @@ runs a
 .BR brkas (1)
 command in a Docker or Podman container, as the calling user.
 .PP
-The image is a Debian with the host packages of Buildroot, cmake and brkas.
+The image is a Debian with the host packages of Buildroot, cmake, brkas and
+.BR brdevtool (1).
 When the default image is missing, it is built from the Dockerfile shipped
 with brkas.
 .PP
@@ -68,4 +69,5 @@ The status of the brkas command, or of the image build.
 brkas\-container \-\-mount ~/src/myapp shell demo.yml
 .fi
 .SH SEE ALSO
-.BR brkas (1)
+.BR brkas (1),
+.BR brdevtool (1)

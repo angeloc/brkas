@@ -29,4 +29,4 @@ version = {attr = "brkas.__version__"}
 "share/man/man1" = ["brkas.1", "brkas-container.1"]
 
 [tool.setuptools.package-data]
-brkas = ["schema.json", "container/Dockerfile", "container/brkas.sh"]
+brkas = ["schema.json", "container/Dockerfile", "container/brkas.sh", "container/brdevtool.sh"]
